@@ -74,6 +74,7 @@
 	const char modeAllTrackRandomLoop[] PROGMEM = "Mode: all tracks (in random order) of directory as infinite loop";
 	const char modeWebstream[] PROGMEM = "Mode: webstream";
 	const char modeWebstreamM3u[] PROGMEM = "Mode: Webstream (local .m3u-file)";
+	const char modeWebstreamM3uRemote[] PROGMEM = "Mode: Webstream (remote .m3u-file)";
 	const char webstreamNotAvailable[] PROGMEM = "Unable to access webstream as no wifi-connection is available!";
 	const char modeDoesNotExist[] PROGMEM = "Playmode does not exist!";
 	const char modeRepeatNone[] PROGMEM = "Repeatmode: no repeat";

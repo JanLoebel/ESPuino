@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <freertos/task.h>
 #include <esp_task_wdt.h>
+#include <HTTPClient.h>
 #include "settings.h"
 #include "Audio.h"
 #include "AudioPlayer.h"
@@ -20,6 +21,7 @@
 #include "Bluetooth.h"
 #include "Cmd.h"
 
+
 #define AUDIOPLAYER_VOLUME_MAX 21u
 #define AUDIOPLAYER_VOLUME_MIN 0u
 #define AUDIOPLAYER_VOLUME_INIT 3u
@@ -34,6 +36,9 @@ static uint8_t AudioPlayer_MaxVolumeSpeaker = AUDIOPLAYER_VOLUME_MAX;
 static uint8_t AudioPlayer_MinVolume = AUDIOPLAYER_VOLUME_MIN;
 static uint8_t AudioPlayer_InitVolume = AUDIOPLAYER_VOLUME_INIT;
 
+// Http
+static HTTPClient httpClient;
+
 #ifdef HEADPHONE_ADJUST_ENABLE
 	static bool AudioPlayer_HeadphoneLastDetectionState;
 	static uint32_t AudioPlayer_HeadphoneLastDetectionTimestamp = 0u;
@@ -43,6 +48,7 @@ static uint8_t AudioPlayer_InitVolume = AUDIOPLAYER_VOLUME_INIT;
 static void AudioPlayer_Task(void *parameter);
 static void AudioPlayer_HeadphoneVolumeManager(void);
 static char **AudioPlayer_ReturnPlaylistFromWebstream(const char *_webUrl);
+static char **AudioPlayer_ReturnPlaylistFromM3U(const char *_webUrl);
 static int AudioPlayer_ArrSortHelper(const void *a, const void *b);
 static void AudioPlayer_SortPlaylist(const char **arr, int n);
 static void AudioPlayer_SortPlaylist(char *str[], const uint32_t count);
@@ -833,7 +839,7 @@ void AudioPlayer_TrackQueueDispatcher(const char *_itemToPlay, const uint32_t _l
 	gPlayProperties.currentTrackNumber = _trackLastPlayed;
 	char **musicFiles;
 
-	if (_playMode != WEBSTREAM) {
+	if (_playMode != WEBSTREAM && _playMode != REMOTE_M3U) {
 		if (_playMode == RANDOM_SUBDIRECTORY_OF_DIRECTORY) {
 			filename = SdCard_pickRandomSubdirectory(filename);     // *filename (input): target-directory  //   *filename (output): random subdirectory
 			if (filename == NULL) {  // If error occured while extracting random subdirectory
@@ -844,6 +850,9 @@ void AudioPlayer_TrackQueueDispatcher(const char *_itemToPlay, const uint32_t _l
 		} else {
 			musicFiles = SdCard_ReturnPlaylist(filename, _playMode);
 		}
+	} else if(_playMode == REMOTE_M3U) {
+		// TODO: Think about moving this into 'AudioPlayer_ReturnPlaylistFromWebstream' method with playMode as parameter like it was done above in SdCard_ReturnPlaylist
+		musicFiles = AudioPlayer_ReturnPlaylistFromM3U(filename);
 	} else {
 		musicFiles = AudioPlayer_ReturnPlaylistFromWebstream(filename);
 	}
@@ -982,6 +991,18 @@ void AudioPlayer_TrackQueueDispatcher(const char *_itemToPlay, const uint32_t _l
 			break;
 		}
 
+		case REMOTE_M3U: {
+			Log_Println((char *) FPSTR(modeWebstreamM3uRemote), LOGLEVEL_NOTICE);
+			if (Wlan_IsConnected()) {
+				xQueueSend(gTrackQueue, &(musicFiles), 0);
+			} else {
+				Log_Println((char *) FPSTR(webstreamNotAvailable), LOGLEVEL_ERROR);
+				System_IndicateError();
+				gPlayProperties.playMode = NO_PLAYLIST;
+			}
+			break;
+		}
+
 		default:
 			Log_Println((char *) FPSTR(modeDoesNotExist), LOGLEVEL_ERROR);
 			gPlayProperties.playMode = NO_PLAYLIST;
@@ -1049,6 +1070,24 @@ char **AudioPlayer_ReturnPlaylistFromWebstream(const char *_webUrl) {
 
 	free(webUrl);
 	return ++url;
+}
+
+char **AudioPlayer_ReturnPlaylistFromM3U(const char* _webUrl) {
+	httpClient.begin(_webUrl);
+	int httpResponseCode = httpClient.GET();
+
+	if (httpResponseCode >= 200 && httpResponseCode <= 300) {
+		String payload = httpClient.getString();
+		// TODO parse M3U
+		Log_Println(payload.c_str(), LOGLEVEL_INFO);
+	}
+
+	httpClient.end();
+
+	static char **urlResult = (char **)x_malloc(sizeof(char *) * 2);
+	urlResult[0] = x_strdup("1");
+	urlResult[1] = x_strdup("test");
+	return ++urlResult;
 }
 
 // Adds new control-command to control-queue

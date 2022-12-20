@@ -29,6 +29,7 @@
 #define RANDOM_SUBDIRECTORY_OF_DIRECTORY 13         // Picks a random subdirectory from a given directory and do ALL_TRACKS_OF_DIR_SORTED
 #define WEBSTREAM                        8          // Play webradio-stream
 #define LOCAL_M3U                        11         // Plays items (webstream or files) with addresses/paths from a local m3u-file
+#define REMOTE_M3U                       14         // Used if playlist is created
 #define BUSY                             10         // Used if playlist is created
 
 
